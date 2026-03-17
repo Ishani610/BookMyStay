@@ -3,12 +3,11 @@ package com.bookmystay.app;
 import java.util.*;
 
 /**
- * UC6: Reservation Confirmation & Room Allocation
- * Demonstrates FIFO processing + Set for uniqueness + inventory update
+ * UC7: Add-On Service Selection
  */
 public class BookMyStayApp {
 
-    // Abstract Room
+    // ===== ROOM =====
     static abstract class Room {
         protected String type;
         protected int beds;
@@ -33,7 +32,7 @@ public class BookMyStayApp {
         public SuiteRoom() { super("Suite Room", 3, 5000); }
     }
 
-    // Inventory
+    // ===== INVENTORY =====
     static class RoomInventory {
         private Map<String, Integer> inventory = new HashMap<>();
 
@@ -50,18 +49,20 @@ public class BookMyStayApp {
         }
     }
 
-    // Reservation request
+    // ===== RESERVATION =====
     static class Reservation {
         String guestName;
         String roomType;
+        String reservationId;
 
-        public Reservation(String guestName, String roomType) {
+        public Reservation(String guestName, String roomType, String reservationId) {
             this.guestName = guestName;
             this.roomType = roomType;
+            this.reservationId = reservationId;
         }
     }
 
-    // Booking Queue (FIFO)
+    // ===== QUEUE =====
     static class BookingQueue {
         Queue<Reservation> queue = new LinkedList<>();
 
@@ -70,7 +71,7 @@ public class BookMyStayApp {
         }
 
         public Reservation getNext() {
-            return queue.poll(); // FIFO
+            return queue.poll();
         }
 
         public boolean isEmpty() {
@@ -78,20 +79,15 @@ public class BookMyStayApp {
         }
     }
 
-    // Booking Service (CORE UC6)
+    // ===== BOOKING SERVICE =====
     static class BookingService {
 
-        // Prevent duplicate room IDs
         private Set<String> usedRoomIds = new HashSet<>();
-
-        // Track allocated rooms by type
-        private Map<String, Set<String>> allocatedRooms = new HashMap<>();
-
         private int idCounter = 1;
 
-        public void processBookings(BookingQueue queue, RoomInventory inventory) {
+        public List<Reservation> confirmedReservations = new ArrayList<>();
 
-            System.out.println("\n--- Processing Bookings ---");
+        public void processBookings(BookingQueue queue, RoomInventory inventory) {
 
             while (!queue.isEmpty()) {
 
@@ -101,53 +97,101 @@ public class BookMyStayApp {
 
                 if (available > 0) {
 
-                    // Generate unique room ID
                     String roomId = r.roomType.substring(0, 2).toUpperCase() + idCounter++;
 
-                    // Ensure uniqueness
                     if (!usedRoomIds.contains(roomId)) {
 
                         usedRoomIds.add(roomId);
-
-                        // Map room type → allocated IDs
-                        allocatedRooms.putIfAbsent(r.roomType, new HashSet<>());
-                        allocatedRooms.get(r.roomType).add(roomId);
-
-                        // Update inventory immediately
                         inventory.reduceRoom(r.roomType);
 
-                        System.out.println("Booking Confirmed for " + r.guestName +
-                                " | Room ID: " + roomId);
+                        r.reservationId = roomId;
+                        confirmedReservations.add(r);
+
+                        System.out.println("Confirmed: " + r.guestName + " → " + roomId);
                     }
 
                 } else {
-                    System.out.println("Booking Failed for " + r.guestName +
-                            " (No availability)");
+                    System.out.println("Failed: " + r.guestName);
                 }
             }
         }
     }
 
-    // MAIN
+    // ===== SERVICE (NEW) =====
+    static class Service {
+        String name;
+        double cost;
+
+        public Service(String name, double cost) {
+            this.name = name;
+            this.cost = cost;
+        }
+    }
+
+    // ===== SERVICE MANAGER (NEW) =====
+    static class ServiceManager {
+
+        private Map<String, List<Service>> serviceMap = new HashMap<>();
+
+        public void addService(String reservationId, Service service) {
+
+            serviceMap.putIfAbsent(reservationId, new ArrayList<>());
+            serviceMap.get(reservationId).add(service);
+        }
+
+        public double calculateCost(String reservationId) {
+
+            double total = 0;
+
+            List<Service> services = serviceMap.getOrDefault(reservationId, new ArrayList<>());
+
+            for (Service s : services) {
+                total += s.cost;
+            }
+
+            return total;
+        }
+
+        public void displayServices(String reservationId) {
+
+            System.out.println("\nServices for " + reservationId);
+
+            List<Service> services = serviceMap.getOrDefault(reservationId, new ArrayList<>());
+
+            for (Service s : services) {
+                System.out.println(s.name + " - " + s.cost);
+            }
+
+            System.out.println("Total Add-on Cost: " + calculateCost(reservationId));
+        }
+    }
+
+    // ===== MAIN =====
     public static void main(String[] args) {
 
-        System.out.println("===== Book My Stay App =====");
-
-        // Inventory setup
         RoomInventory inventory = new RoomInventory();
         inventory.addRoom("Single Room", 2);
-        inventory.addRoom("Double Room", 1);
 
-        // Booking queue
         BookingQueue queue = new BookingQueue();
 
-        queue.addRequest(new Reservation("Alice", "Single Room"));
-        queue.addRequest(new Reservation("Bob", "Single Room"));
-        queue.addRequest(new Reservation("Charlie", "Single Room")); // should fail
-        queue.addRequest(new Reservation("David", "Double Room"));
+        queue.addRequest(new Reservation("Alice", "Single Room", ""));
+        queue.addRequest(new Reservation("Bob", "Single Room", ""));
 
-        // Process bookings
-        BookingService service = new BookingService();
-        service.processBookings(queue, inventory);
+        BookingService bookingService = new BookingService();
+        bookingService.processBookings(queue, inventory);
+
+        // UC7: Add services
+        ServiceManager sm = new ServiceManager();
+
+        Service wifi = new Service("WiFi", 200);
+        Service breakfast = new Service("Breakfast", 500);
+
+        for (Reservation r : bookingService.confirmedReservations) {
+
+            sm.addService(r.reservationId, wifi);
+            sm.addService(r.reservationId, breakfast);
+
+            sm.displayServices(r.reservationId);
+        }
     }
 }
