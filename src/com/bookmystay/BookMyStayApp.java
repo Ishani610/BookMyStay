@@ -1,15 +1,14 @@
 package com.bookmystay.app;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 /**
- * UC3: Centralized Room Inventory Management
- * Demonstrates use of HashMap for managing room availability
+ * UC4: Room Search & Availability Check
+ * Demonstrates read-only search using inventory
  */
 public class BookMyStayApp {
 
-    // Abstract Room class (same as UC2)
+    // Abstract Room class
     static abstract class Room {
         protected String type;
         protected int beds;
@@ -44,36 +43,46 @@ public class BookMyStayApp {
         }
     }
 
-    // Inventory Class (NEW in UC3)
+    // Inventory (same as UC3)
     static class RoomInventory {
-
         private Map<String, Integer> inventory;
 
-        // Constructor → initialize inventory
         public RoomInventory() {
             inventory = new HashMap<>();
         }
 
-        // Add room type with count
         public void addRoom(String type, int count) {
             inventory.put(type, count);
         }
 
-        // Get availability
         public int getAvailability(String type) {
             return inventory.getOrDefault(type, 0);
         }
 
-        // Update availability
-        public void updateAvailability(String type, int count) {
-            inventory.put(type, count);
-        }
-
-        // Display inventory
         public void displayInventory() {
             System.out.println("\n--- Room Inventory ---");
             for (String type : inventory.keySet()) {
                 System.out.println(type + " -> " + inventory.get(type));
+            }
+        }
+    }
+
+    // NEW: Search Service (READ-ONLY)
+    static class SearchService {
+
+        public void searchAvailableRooms(RoomInventory inventory, List<Room> rooms) {
+
+            System.out.println("\n--- Available Rooms ---");
+
+            for (Room room : rooms) {
+
+                int available = inventory.getAvailability(room.type);
+
+                // Only show available rooms
+                if (available > 0) {
+                    room.displayDetails();
+                    System.out.println("Available: " + available);
+                }
             }
         }
     }
@@ -83,34 +92,21 @@ public class BookMyStayApp {
 
         System.out.println("===== Book My Stay App =====");
 
-        // Create room objects (same as UC2)
+        // Room objects
         Room r1 = new SingleRoom();
         Room r2 = new DoubleRoom();
         Room r3 = new SuiteRoom();
 
-        r1.displayDetails();
-        r2.displayDetails();
-        r3.displayDetails();
+        List<Room> rooms = Arrays.asList(r1, r2, r3);
 
-        // UC3 logic: centralized inventory
+        // Inventory setup
         RoomInventory inventory = new RoomInventory();
-
-        // Initialize inventory
         inventory.addRoom("Single Room", 5);
-        inventory.addRoom("Double Room", 3);
+        inventory.addRoom("Double Room", 0); // unavailable
         inventory.addRoom("Suite Room", 2);
 
-        // Display inventory
-        inventory.displayInventory();
-
-        // Check availability
-        System.out.println("\nAvailable Single Rooms: " +
-                inventory.getAvailability("Single Room"));
-
-        // Update availability
-        inventory.updateAvailability("Single Room", 4);
-
-        System.out.println("Updated Single Rooms: " +
-                inventory.getAvailability("Single Room"));
+        // Search (READ ONLY)
+        SearchService searchService = new SearchService();
+        searchService.searchAvailableRooms(inventory, rooms);
     }
 }
