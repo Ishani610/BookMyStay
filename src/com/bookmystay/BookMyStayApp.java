@@ -3,12 +3,12 @@ package com.bookmystay.app;
 import java.util.*;
 
 /**
- * UC6: Reservation Confirmation & Room Allocation
- * Demonstrates FIFO processing + Set for uniqueness + inventory update
+ * UC5: Booking Request (FIFO Queue)
+ * Demonstrates fair handling of booking requests using Queue
  */
 public class BookMyStayApp {
 
-    // Abstract Room
+    // Abstract Room class
     static abstract class Room {
         protected String type;
         protected int beds;
@@ -19,21 +19,31 @@ public class BookMyStayApp {
             this.beds = beds;
             this.price = price;
         }
+
+        public void displayDetails() {
+            System.out.println("Type: " + type + ", Beds: " + beds + ", Price: " + price);
+        }
     }
 
     static class SingleRoom extends Room {
-        public SingleRoom() { super("Single Room", 1, 1000); }
+        public SingleRoom() {
+            super("Single Room", 1, 1000);
+        }
     }
 
     static class DoubleRoom extends Room {
-        public DoubleRoom() { super("Double Room", 2, 2000); }
+        public DoubleRoom() {
+            super("Double Room", 2, 2000);
+        }
     }
 
     static class SuiteRoom extends Room {
-        public SuiteRoom() { super("Suite Room", 3, 5000); }
+        public SuiteRoom() {
+            super("Suite Room", 3, 5000);
+        }
     }
 
-    // Inventory
+    // Inventory (same as UC3/UC4)
     static class RoomInventory {
         private Map<String, Integer> inventory = new HashMap<>();
 
@@ -44,110 +54,73 @@ public class BookMyStayApp {
         public int getAvailability(String type) {
             return inventory.getOrDefault(type, 0);
         }
-
-        public void reduceRoom(String type) {
-            inventory.put(type, inventory.get(type) - 1);
-        }
     }
 
-    // Reservation request
+    // Reservation (NEW in UC5)
     static class Reservation {
-        String guestName;
-        String roomType;
+        private String guestName;
+        private String roomType;
 
         public Reservation(String guestName, String roomType) {
             this.guestName = guestName;
             this.roomType = roomType;
         }
+
+        public String getGuestName() {
+            return guestName;
+        }
+
+        public String getRoomType() {
+            return roomType;
+        }
+
+        public void display() {
+            System.out.println("Guest: " + guestName + " requested " + roomType);
+        }
     }
 
     // Booking Queue (FIFO)
     static class BookingQueue {
-        Queue<Reservation> queue = new LinkedList<>();
+        private Queue<Reservation> queue = new LinkedList<>();
 
+        // Add request
         public void addRequest(Reservation r) {
             queue.add(r);
         }
 
-        public Reservation getNext() {
-            return queue.poll(); // FIFO
-        }
-
-        public boolean isEmpty() {
-            return queue.isEmpty();
-        }
-    }
-
-    // Booking Service (CORE UC6)
-    static class BookingService {
-
-        // Prevent duplicate room IDs
-        private Set<String> usedRoomIds = new HashSet<>();
-
-        // Track allocated rooms by type
-        private Map<String, Set<String>> allocatedRooms = new HashMap<>();
-
-        private int idCounter = 1;
-
-        public void processBookings(BookingQueue queue, RoomInventory inventory) {
-
-            System.out.println("\n--- Processing Bookings ---");
-
-            while (!queue.isEmpty()) {
-
-                Reservation r = queue.getNext();
-
-                int available = inventory.getAvailability(r.roomType);
-
-                if (available > 0) {
-
-                    // Generate unique room ID
-                    String roomId = r.roomType.substring(0, 2).toUpperCase() + idCounter++;
-
-                    // Ensure uniqueness
-                    if (!usedRoomIds.contains(roomId)) {
-
-                        usedRoomIds.add(roomId);
-
-                        // Map room type → allocated IDs
-                        allocatedRooms.putIfAbsent(r.roomType, new HashSet<>());
-                        allocatedRooms.get(r.roomType).add(roomId);
-
-                        // Update inventory immediately
-                        inventory.reduceRoom(r.roomType);
-
-                        System.out.println("Booking Confirmed for " + r.guestName +
-                                " | Room ID: " + roomId);
-                    }
-
-                } else {
-                    System.out.println("Booking Failed for " + r.guestName +
-                            " (No availability)");
-                }
+        // Display all requests
+        public void showRequests() {
+            System.out.println("\n--- Booking Requests (FIFO Order) ---");
+            for (Reservation r : queue) {
+                r.display();
             }
         }
     }
 
-    // MAIN
+    // Main method
     public static void main(String[] args) {
 
         System.out.println("===== Book My Stay App =====");
 
-        // Inventory setup
+        // Room setup (same as before)
+        Room r1 = new SingleRoom();
+        Room r2 = new DoubleRoom();
+        Room r3 = new SuiteRoom();
+
+        // Inventory setup (no updates here)
         RoomInventory inventory = new RoomInventory();
-        inventory.addRoom("Single Room", 2);
-        inventory.addRoom("Double Room", 1);
+        inventory.addRoom("Single Room", 5);
+        inventory.addRoom("Double Room", 3);
+        inventory.addRoom("Suite Room", 2);
 
-        // Booking queue
-        BookingQueue queue = new BookingQueue();
+        // UC5: Booking requests
+        BookingQueue bookingQueue = new BookingQueue();
 
-        queue.addRequest(new Reservation("Alice", "Single Room"));
-        queue.addRequest(new Reservation("Bob", "Single Room"));
-        queue.addRequest(new Reservation("Charlie", "Single Room")); // should fail
-        queue.addRequest(new Reservation("David", "Double Room"));
+        bookingQueue.addRequest(new Reservation("Alicee", "Single Room"));
+        bookingQueue.addRequest(new Reservation("Bob", "Suite Room"));
+        bookingQueue.addRequest(new Reservation("Chaarlie", "Double Room"));
 
-        // Process bookings
-        BookingService service = new BookingService();
-        service.processBookings(queue, inventory);
+        // Display queue (FIFO)
+        bookingQueue.showRequests();
     }
 }
